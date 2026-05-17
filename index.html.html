@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Oracle — AI Sensex & Nifty Forecaster</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#050a0f; --surface:#0b1520; --surface2:#0f1d2e; --border:#1a3050;
+  --green:#00e676; --green-dim:#00b85a; --red:#ff1744; --red-dim:#c0002a;
+  --amber:#ffab00; --blue:#00b0ff; --purple:#7c4dff;
+  --text:#e0eeff; --text-dim:#6b8aaa; --text-muted:#3a5470;
+  --mono:'Space Mono',monospace; --display:'Bebas Neue',sans-serif; --body:'DM Sans',sans-serif;
+  --glow-green:0 0 20px rgba(0,230,118,0.3); --glow-red:0 0 20px rgba(255,23,68,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden;
+  background-image:radial-gradient(ellipse at 20% 0%,rgba(0,176,255,0.04) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(124,77,255,0.04) 0%,transparent 50%)}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:999}
+
+/* OVERLAY */
+#overlay{position:fixed;inset:0;background:rgba(5,10,15,0.97);z-index:9999;display:flex;align-items:center;justify-content:center}
+.box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:38px;width:450px;max-width:92vw;position:relative;overflow:hidden}
+.box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--purple))}
+.blogo{font-family:var(--display);font-size:34px;letter-spacing:3px;background:linear-gradient(90deg,var(--blue),var(--text));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:2px}
+.bsub{font-family:var(--mono);font-size:8px;color:var(--text-muted);letter-spacing:3px;margin-bottom:26px}
+.blbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:7px}
+.binp{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s;margin-bottom:7px}
+.binp:focus{border-color:var(--blue)}
+.bhint{font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:22px;line-height:1.8}
+.bhint a{color:var(--blue);text-decoration:none}
+.bbtn{width:100%;padding:13px;background:linear-gradient(135deg,#0a1f35,#0f2a48);border:1px solid var(--blue);border-radius:8px;color:var(--blue);font-family:var(--mono);font-size:10px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:all .3s}
+.bbtn:hover{background:linear-gradient(135deg,#0d2a45,#1a3d60);box-shadow:0 0 30px rgba(0,176,255,0.2)}
+.berr{font-family:var(--mono);font-size:9px;color:var(--red);margin-top:7px;display:none}
+.bsteps{margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+.bstep{display:flex;gap:11px;align-items:flex-start;margin-bottom:10px;font-size:12px;color:var(--text-dim);line-height:1.5}
+.bnum{font-family:var(--mono);font-size:9px;color:var(--blue);background:rgba(0,176,255,0.1);border:1px solid rgba(0,176,255,0.2);border-radius:50%;width:21px;height:21px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.bmwc{text-align:center;margin-top:18px;font-family:var(--mono);font-size:8px;color:var(--text-muted);letter-spacing:1px}
+.bmwc span{color:var(--blue)}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--border);background:rgba(11,21,32,0.97);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:11px}
+.lico{width:33px;height:33px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.ltxt{font-family:var(--display);font-size:23px;letter-spacing:2px;background:linear-gradient(90deg,var(--blue),var(--text));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lsub{font-family:var(--mono);font-size:8px;color:var(--text-muted);letter-spacing:3px;text-transform:uppercase;margin-top:-3px}
+.hr{display:flex;align-items:center;gap:14px}
+.live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:1px}
+.ldot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite;box-shadow:var(--glow-green)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.clk{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+.kbtn{background:rgba(0,176,255,0.08);border:1px solid rgba(0,176,255,0.2);border-radius:6px;color:var(--blue);font-family:var(--mono);font-size:8px;padding:5px 9px;cursor:pointer;letter-spacing:1px;transition:all .2s}
+.kbtn:hover{background:rgba(0,176,255,0.15)}
+
+/* TICKER */
+.tkwrap{background:var(--surface);border-bottom:1px solid var(--border);overflow:hidden;height:31px;display:flex;align-items:center}
+.tklbl{background:var(--blue);color:#000;font-family:var(--mono);font-size:8px;font-weight:700;padding:0 11px;height:100%;display:flex;align-items:center;letter-spacing:2px;white-space:nowrap;flex-shrink:0}
+.tkscr{display:flex;animation:tk 45s linear infinite;white-space:nowrap}
+.tki{font-family:var(--mono);font-size:9px;padding:0 20px;display:flex;align-items:center;gap:6px;color:var(--text-dim)}
+.tki .nm{color:var(--text);font-weight:700}
+.tki .up{color:var(--green)} .tki .dn{color:var(--red)}
+@keyframes tk{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* MAIN */
+.main{padding:18px 22px;display:grid;grid-template-columns:1fr 1fr 330px;gap:14px;max-width:1600px;margin:0 auto}
+
+/* PANEL */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:.3}
+.phdr{padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.ptit{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:6px}
+.pdot{width:6px;height:6px;border-radius:50%;background:var(--blue)}
+.tag{font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:4px;background:rgba(0,176,255,0.1);color:var(--blue);letter-spacing:1px;text-transform:uppercase}
+.tag.bull{background:rgba(0,230,118,0.12);color:var(--green)} .tag.bear{background:rgba(255,23,68,0.12);color:var(--red)} .tag.neu{background:rgba(107,138,170,0.1);color:var(--text-dim)}
+
+/* FORECAST */
+.fcb{padding:16px}
+.iname{font-family:var(--display);font-size:34px;letter-spacing:2px;line-height:1}
+.iname.sx{color:var(--amber)} .iname.nf{color:var(--blue)}
+.icur{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin:4px 0 14px}
+.fcrow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+.fb{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
+.fb.up{border-color:rgba(0,230,118,0.25)} .fb.dn{border-color:rgba(255,23,68,0.25)}
+.fb.am{border-color:rgba(255,171,0,0.25)} .fb.pu{border-color:rgba(124,77,255,0.25)}
+.fb::after{content:'';position:absolute;inset:0;opacity:.03}
+.fb.up::after{background:var(--green)} .fb.dn::after{background:var(--red)}
+.fl{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px}
+.fv{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1}
+.fv.up{color:var(--green);text-shadow:var(--glow-green)} .fv.dn{color:var(--red);text-shadow:var(--glow-red)}
+.fv.am{color:var(--amber)} .fv.pu{color:var(--purple)}
+.fp{font-family:var(--mono);font-size:9px;margin-top:3px;opacity:.7}
+.fp.up{color:var(--green)} .fp.dn{color:var(--red)}
+.confsec{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.confl{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between}
+.confv{color:var(--amber);font-size:9px}
+.confwrap{background:var(--bg);height:5px;border-radius:3px;overflow:hidden}
+.conffill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--amber),var(--green));transition:width 1.2s ease;box-shadow:0 0 8px rgba(255,171,0,.35)}
+.mchart{display:flex;align-items:flex-end;gap:2px;height:26px;margin-top:7px}
+.bar{flex:1;border-radius:2px 2px 0 0}
+.bar.up{background:var(--green-dim)} .bar.dn{background:var(--red-dim)}
+
+/* SIDEBAR */
+.sidebar{grid-column:3;grid-row:1/3;display:flex;flex-direction:column;gap:14px}
+.sentbody{text-align:center;padding:14px 14px 18px}
+.gwrap{position:relative;width:160px;height:88px;margin:0 auto 10px}
+.gsvg{width:100%;height:100%}
+.slbl{font-family:var(--display);font-size:19px;letter-spacing:2px}
+.sscr{font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px}
+.gtbl{width:100%;border-collapse:collapse}
+.gtbl th{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;text-align:left;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
+.gtbl td{padding:7px 12px;font-family:var(--mono);font-size:9px;border-bottom:1px solid rgba(26,48,80,.4)}
+.gtbl tr:last-child td{border-bottom:none}
+.gtbl tr:hover td{background:rgba(255,255,255,.015)}
+.mn{color:var(--text);font-weight:700} .mc{color:var(--text-muted);font-size:7px}
+.vu{color:var(--green)} .vd{color:var(--red)} .vn{color:var(--text-dim)}
+
+/* STATS */
+.strow{grid-column:span 2;display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;position:relative;overflow:hidden}
+.sc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.sc.s1::after{background:var(--green)} .sc.s2::after{background:var(--red)}
+.sc.s3::after{background:var(--amber)} .sc.s4::after{background:var(--blue)}
+.si{font-size:17px;margin-bottom:7px}
+.sv{font-family:var(--display);font-size:26px;letter-spacing:1px;line-height:1}
+.sv.up{color:var(--green)} .sv.dn{color:var(--red)} .sv.am{color:var(--amber)} .sv.bl{color:var(--blue)}
+.sl{font-family:var(--mono);font-size:7px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+
+/* AI PANEL */
+.aipanel{grid-column:span 3}
+.aitabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+.aitab{padding:10px 16px;font-family:var(--mono);font-size:8px;letter-spacing:1px;color:var(--text-muted);cursor:pointer;border:none;border-bottom:2px solid transparent;transition:all .2s;text-transform:uppercase;background:none}
+.aitab:hover{color:var(--text-dim)} .aitab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.aicont{padding:16px;min-height:170px}
+.tabp{display:none} .tabp.active{display:block}
+.aiout{font-family:var(--mono);font-size:10px;line-height:1.9;color:var(--text-dim);white-space:pre-wrap}
+.thinking{display:none;align-items:center;gap:10px;padding:12px 16px;font-family:var(--mono);font-size:9px;color:var(--blue);letter-spacing:1px}
+.thinking.show{display:flex}
+.tdots{display:flex;gap:4px}
+.td{width:5px;height:5px;border-radius:50%;background:var(--blue);animation:think 1.4s infinite ease-in-out}
+.td:nth-child(2){animation-delay:.2s} .td:nth-child(3){animation-delay:.4s}
+@keyframes think{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+.fnogrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fnotit{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:9px}
+.lvrow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(26,48,80,.4)}
+.lvtype{font-family:var(--mono);font-size:8px;color:var(--text-dim)}
+.lvval{font-family:var(--mono);font-size:11px;font-weight:700}
+.lc{color:var(--green)} .lp{color:var(--red)} .lt{color:var(--amber)} .ls{color:var(--purple)}
+.ngrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.nc{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px;transition:all .2s}
+.nc:hover{border-color:var(--blue);transform:translateY(-2px)}
+.nsrc{font-family:var(--mono);font-size:7px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.nhl{font-size:10px;line-height:1.5;color:var(--text);margin-bottom:6px}
+.nimp{font-family:var(--mono);font-size:7px;padding:2px 6px;border-radius:3px;display:inline-block}
+.ibull{background:rgba(0,230,118,.1);color:var(--green)} .ibear{background:rgba(255,23,68,.1);color:var(--red)} .ineu{background:rgba(107,138,170,.1);color:var(--text-dim)}
+.runbtn{display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#0a1f35,#0f2a48);border:1px solid var(--blue);border-radius:8px;color:var(--blue);font-family:var(--mono);font-size:10px;letter-spacing:2px;padding:12px 22px;cursor:pointer;transition:all .3s;text-transform:uppercase;width:100%;margin:13px 0 0}
+.runbtn:hover:not(:disabled){background:linear-gradient(135deg,#0d2a45,#1a3d60);box-shadow:0 0 25px rgba(0,176,255,.2);transform:translateY(-1px)}
+.runbtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.disc{text-align:center;font-family:var(--mono);font-size:7px;color:var(--text-muted);margin-top:7px;letter-spacing:1px}
+.footer{margin-top:14px;padding:11px 22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:7px;color:var(--text-muted);letter-spacing:1px}
+.mwc{color:var(--blue)}
+.empty{text-align:center;color:var(--text-muted);font-family:var(--mono);font-size:9px;padding:32px 0;letter-spacing:1px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media(max-width:1100px){
+  .main{grid-template-columns:1fr 1fr}
+  .sidebar{grid-column:span 2;grid-row:auto;flex-direction:row;flex-wrap:wrap}
+  .sidebar>*{flex:1;min-width:260px}
+  .aipanel{grid-column:span 2} .strow{grid-column:span 2}
+  .ngrid{grid-template-columns:1fr 1fr} .fnogrid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .main{grid-template-columns:1fr;padding:10px;gap:10px}
+  .sidebar,.aipanel,.strow{grid-column:span 1}
+  .strow{grid-template-columns:1fr 1fr}
+  .ngrid{grid-template-columns:1fr}
+  .aitabs{overflow-x:auto}
+  .fnogrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY -->
+<div id="overlay">
+  <div class="box">
+    <div class="blogo">MARKET ORACLE</div>
+    <div class="bsub">AI-POWERED INDIAN MARKET FORECASTER</div>
+    <div class="blbl">Groq API Key Daalo</div>
+    <input type="password" id="kinput" class="binp" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx" />
+    <div class="berr" id="kerr">Key galat hai ya khaali — gsk_ se shuru honi chahiye</div>
+    <div class="bhint">
+      Free key lo: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a><br>
+      Key sirf tere browser ke localStorage mein save hogi — koi server nahi jayegi
+    </div>
+    <button class="bbtn" onclick="saveKey()">MARKET ORACLE SHURU KARO</button>
+    <div class="bsteps">
+      <div class="bstep"><div class="bnum">1</div><div>console.groq.com pe jao → Google se Sign Up</div></div>
+      <div class="bstep"><div class="bnum">2</div><div>API Keys → Create API Key → naam do</div></div>
+      <div class="bstep"><div class="bnum">3</div><div>Key copy karo (gsk_...) → yahan paste karo</div></div>
+    </div>
+    <div class="bmwc">Made with <span>Claude AI</span> by Anthropic &nbsp;•&nbsp; Powered by Groq LLaMA 3.3 70B</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="lico">📡</div>
+    <div>
+      <div class="ltxt">MARKET ORACLE</div>
+      <div class="lsub">AI-Powered Indian Market Forecaster</div>
+    </div>
+  </div>
+  <div class="hr">
+    <div class="live"><div class="ldot"></div>GROQ AI LIVE</div>
+    <div class="clk" id="clock">--:--:-- IST</div>
+    <button class="kbtn" onclick="changeKey()">🔑 KEY CHANGE</button>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="tkwrap">
+  <div class="tklbl">GLOBAL PULSE</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="tkscr" id="ticker"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SENSEX CARD -->
+  <div class="panel">
+    <div class="phdr">
+      <div class="ptit"><span class="pdot" style="background:var(--amber)"></span>BSE SENSEX — KAL KA FORECAST</div>
+      <div class="tag neu" id="s-tag">WAITING</div>
+    </div>
+    <div class="fcb">
+      <div class="iname sx">SENSEX</div>
+      <div class="icur" id="s-cur">Current: — Analysis run karo</div>
+      <div class="fcrow">
+        <div class="fb up"><div class="fl">▲ UPSIDE TARGET</div><div class="fv up" id="s-up">—</div><div class="fp up" id="s-upp">+0.00%</div></div>
+        <div class="fb dn"><div class="fl">▼ DOWNSIDE RISK</div><div class="fv dn" id="s-dn">—</div><div class="fp dn" id="s-dnp">-0.00%</div></div>
+      </div>
+      <div class="fcrow">
+        <div class="fb am"><div class="fl">🎯 RESISTANCE</div><div class="fv am" id="s-res">—</div></div>
+        <div class="fb pu"><div class="fl">🛡 SUPPORT</div><div class="fv pu" id="s-sup">—</div></div>
+      </div>
+      <div class="confsec">
+        <div class="confl"><span>CONFIDENCE SCORE</span><span class="confv" id="s-conf">--%</span></div>
+        <div class="confwrap"><div class="conffill" id="s-cfill" style="width:0%"></div></div>
+      </div>
+      <div class="mchart" id="s-chart"></div>
+    </div>
+  </div>
+
+  <!-- NIFTY CARD -->
+  <div class="panel">
+    <div class="phdr">
+      <div class="ptit"><span class="pdot" style="background:var(--blue)"></span>NSE NIFTY 50 — KAL KA FORECAST</div>
+      <div class="tag neu" id="n-tag">WAITING</div>
+    </div>
+    <div class="fcb">
+      <div class="iname nf">NIFTY 50</div>
+      <div class="icur" id="n-cur">Current: — Analysis run karo</div>
+      <div class="fcrow">
+        <div class="fb up"><div class="fl">▲ UPSIDE TARGET</div><div class="fv up" id="n-up">—</div><div class="fp up" id="n-upp">+0.00%</div></div>
+        <div class="fb dn"><div class="fl">▼ DOWNSIDE RISK</div><div class="fv dn" id="n-dn">—</div><div class="fp dn" id="n-dnp">-0.00%</div></div>
+      </div>
+      <div class="fcrow">
+        <div class="fb am"><div class="fl">🎯 RESISTANCE</div><div class="fv am" id="n-res">—</div></div>
+        <div class="fb pu"><div class="fl">🛡 SUPPORT</div><div class="fv pu" id="n-sup">—</div></div>
+      </div>
+      <div class="confsec">
+        <div class="confl"><span>CONFIDENCE SCORE</span><span class="confv" id="n-conf">--%</span></div>
+        <div class="confwrap"><div class="conffill" id="n-cfill" style="width:0%"></div></div>
+      </div>
+      <div class="mchart" id="n-chart"></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="panel">
+      <div class="phdr">
+        <div class="ptit"><span class="pdot"></span>MARKET SENTIMENT</div>
+        <div class="tag" id="sent-tag">NEUTRAL</div>
+      </div>
+      <div class="sentbody">
+        <div class="gwrap">
+          <svg class="gsvg" viewBox="0 0 180 100">
+            <defs>
+              <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ff1744"/>
+                <stop offset="50%" stop-color="#ffab00"/>
+                <stop offset="100%" stop-color="#00e676"/>
+              </linearGradient>
+            </defs>
+            <path d="M20 90 A70 70 0 0 1 160 90" fill="none" stroke="rgba(26,48,80,0.8)" stroke-width="13" stroke-linecap="round"/>
+            <path d="M20 90 A70 70 0 0 1 160 90" fill="none" stroke="url(#gg)" stroke-width="13" stroke-linecap="round" opacity="0.9"/>
+            <line id="needle" x1="90" y1="90" x2="90" y2="30" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="90" cy="90" r="5" fill="white"/>
+          </svg>
+        </div>
+        <div class="slbl" id="sent-lbl" style="color:var(--text-dim)">NEUTRAL</div>
+        <div class="sscr" id="sent-scr">Score: 50/100</div>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="phdr">
+        <div class="ptit"><span class="pdot" style="background:var(--purple)"></span>GLOBAL MARKETS</div>
+      </div>
+      <table class="gtbl">
+        <thead><tr><th>Market</th><th>Change</th><th>Impact</th></tr></thead>
+        <tbody id="gtbody"><tr><td colspan="3"><div class="empty">Analysis run karo...</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="strow">
+    <div class="sc s1"><div class="si">📈</div><div class="sv up" id="st-bull">—</div><div class="sl">Bullish Signals</div></div>
+    <div class="sc s2"><div class="si">📉</div><div class="sv dn" id="st-bear">—</div><div class="sl">Bearish Signals</div></div>
+    <div class="sc s3"><div class="si">🌏</div><div class="sv am" id="st-glob">—</div><div class="sl">Global Mkts Positive</div></div>
+    <div class="sc s4"><div class="si">🤖</div><div class="sv bl">GROQ</div><div class="sl">AI Engine Active</div></div>
+  </div>
+
+  <!-- AI PANEL -->
+  <div class="panel aipanel">
+    <div class="phdr">
+      <div class="ptit"><span class="pdot" style="background:var(--green)"></span>AI ANALYSIS ENGINE — GROQ LLaMA 3.3 70B (FREE)</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <div class="tag">FREE API</div>
+        <div class="tag bull">LIVE</div>
+      </div>
+    </div>
+    <div class="aitabs">
+      <button class="aitab active" onclick="switchTab(this,'t-ana')">🧠 AI Analysis</button>
+      <button class="aitab" onclick="switchTab(this,'t-fno')">📊 F&amp;O Levels</button>
+      <button class="aitab" onclick="switchTab(this,'t-news')">🌐 News Impact</button>
+      <button class="aitab" onclick="switchTab(this,'t-strat')">🎯 Strategy</button>
+    </div>
+    <div class="thinking" id="thinking">
+      <div class="tdots"><div class="td"></div><div class="td"></div><div class="td"></div></div>
+      <span id="thtxt">LLaMA 3.3 70B market analyze kar raha hai...</span>
+    </div>
+    <div class="aicont">
+      <div id="t-ana" class="tabp active">
+        <div class="aiout" id="out-ana">╔══════════════════════════════════════════╗
+║     MARKET ORACLE — GROQ AI ENGINE      ║
+║   LLaMA 3.3 70B  •  Free  •  Fast      ║
+╚══════════════════════════════════════════╝
+
+Neeche "RUN AI ANALYSIS" dabao:
+
+ → LLaMA 3.3 70B model (Groq Free API)
+   aaj ke market conditions analyze karega
+ → Kal ke liye Sensex aur Nifty forecast
+ → F&O Support / Resistance levels
+ → Global markets ka Indian market pe
+   impact assess karega
+ → Actionable trading strategy with SL
+
+Made with Claude AI by Anthropic
+Powered by Groq LLaMA 3.3 70B (FREE)</div>
+      </div>
+      <div id="t-fno" class="tabp">
+        <div class="fnogrid" id="fno-content">
+          <div style="grid-column:span 2"><div class="empty">Analysis run karo...</div></div>
+        </div>
+      </div>
+      <div id="t-news" class="tabp">
+        <div class="ngrid" id="ngrid">
+          <div style="grid-column:span 3"><div class="empty">Analysis run karo...</div></div>
+        </div>
+      </div>
+      <div id="t-strat" class="tabp">
+        <div class="aiout" id="out-strat"><span style="color:var(--text-muted)">Analysis run karo...</span></div>
+      </div>
+    </div>
+    <div style="padding:0 16px 16px">
+      <button class="runbtn" id="runBtn" onclick="runAnalysis()">
+        🔮 &nbsp; RUN AI ANALYSIS — GROQ POWERED FORECAST
+      </button>
+      <div class="disc">⚠️ AI-generated forecast | Not SEBI-registered advice | Educational purpose only | Trade at your own risk</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>MARKET ORACLE © 2025 | Groq LLaMA 3.3 70B</span>
+  <span id="last-upd">Last Updated: Never</span>
+  <span>🤖 <span class="mwc">Made with Claude AI</span> by Anthropic • Not Investment Advice</span>
+</div>
+
+<script>
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const KEY_K = 'mo_groq_key_v2';
+
+// CLOCK
+setInterval(()=>{
+  const d=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const p=n=>String(n).padStart(2,'0');
+  document.getElementById('clock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+' IST';
+},1000);
+
+// KEY
+function saveKey(){
+  const k=(document.getElementById('kinput').value||'').trim();
+  if(!k.startsWith('gsk_')||k.length<20){document.getElementById('kerr').style.display='block';return;}
+  localStorage.setItem(KEY_K,k);
+  document.getElementById('overlay').style.display='none';
+}
+function changeKey(){localStorage.removeItem(KEY_K);document.getElementById('kinput').value='';document.getElementById('kerr').style.display='none';document.getElementById('overlay').style.display='flex';}
+window.addEventListener('load',()=>{if(localStorage.getItem(KEY_K))document.getElementById('overlay').style.display='none';});
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('kinput').addEventListener('keypress',e=>{if(e.key==='Enter')saveKey();});
+});
+
+// TICKER
+const TK=[
+  {nm:'SENSEX',v:'82,948',c:'+0.45%',u:true},{nm:'NIFTY 50',v:'25,217',c:'+0.38%',u:true},
+  {nm:'BANK NIFTY',v:'54,186',c:'-0.12%',u:false},{nm:'DOW JONES',v:'43,828',c:'+0.28%',u:true},
+  {nm:'S&P 500',v:'5,958',c:'+0.41%',u:true},{nm:'NASDAQ',v:'19,310',c:'+0.55%',u:true},
+  {nm:'NIKKEI 225',v:'38,236',c:'-0.63%',u:false},{nm:'HANG SENG',v:'21,847',c:'+1.12%',u:true},
+  {nm:'GIFT NIFTY',v:'25,289',c:'+0.28%',u:true},{nm:'CRUDE OIL',v:'$74.82',c:'-0.92%',u:false},
+  {nm:'GOLD',v:'₹75,420',c:'+0.31%',u:true},{nm:'USD/INR',v:'83.94',c:'-0.08%',u:false},
+  {nm:'FTSE 100',v:'8,312',c:'+0.22%',u:true},{nm:'DAX',v:'19,884',c:'+0.67%',u:true},{nm:'INDIA VIX',v:'14.32',c:'-3.21%',u:false}
+];
+document.getElementById('ticker').innerHTML=[...TK,...TK].map(d=>
+  '<span class="tki"><span class="nm">'+d.nm+'</span><span>'+d.v+'</span><span class="'+(d.u?'up':'dn')+'">'+(d.u?'▲':'▼')+' '+d.c+'</span></span>'
+).join('');
+
+// TAB
+function switchTab(btn,id){
+  document.querySelectorAll('.aitab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tabp').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// CHART
+function miniChart(id,dir){
+  document.getElementById(id).innerHTML=Array.from({length:16},()=>{
+    const h=6+Math.random()*20;
+    const u=dir==='bull'?Math.random()>.3:Math.random()>.7;
+    return '<div class="bar '+(u?'up':'dn')+'" style="height:'+h+'px"></div>';
+  }).join('');
+}
+
+// GAUGE
+function setGauge(score){
+  const rad=((score/100)*180-90)*Math.PI/180;
+  const x=90+Math.sin(rad)*-58,y=90-Math.cos(rad)*58;
+  document.getElementById('needle').setAttribute('x2',x.toFixed(1));
+  document.getElementById('needle').setAttribute('y2',y.toFixed(1));
+  let lbl,clr;
+  if(score>=72){lbl='BULLISH 🐂';clr='var(--green)'}
+  else if(score>=58){lbl='MILD BULL 📈';clr='var(--green-dim)'}
+  else if(score>=42){lbl='NEUTRAL ↔️';clr='var(--amber)'}
+  else if(score>=28){lbl='MILD BEAR 📉';clr='var(--red-dim)'}
+  else{lbl='BEARISH 🐻';clr='var(--red)'}
+  document.getElementById('sent-lbl').textContent=lbl;
+  document.getElementById('sent-lbl').style.color=clr;
+  document.getElementById('sent-scr').textContent='Score: '+score+'/100';
+  const t=document.getElementById('sent-tag');
+  t.textContent=score>=58?'BULLISH':score>=42?'NEUTRAL':'BEARISH';
+  t.className='tag '+(score>=58?'bull':score>=42?'neu':'bear');
+}
+
+// POPULATE
+function populate(d){
+  const f=n=>'₹'+Number(n).toLocaleString('en-IN');
+  const p=(a,b)=>((a-b)/b*100).toFixed(2);
+  // Sensex
+  document.getElementById('s-cur').textContent='Current: '+f(d.sensex_current);
+  document.getElementById('s-up').textContent=f(d.sensex_upside);
+  document.getElementById('s-dn').textContent=f(d.sensex_downside);
+  document.getElementById('s-upp').textContent='+'+p(d.sensex_upside,d.sensex_current)+'%';
+  document.getElementById('s-dnp').textContent=p(d.sensex_downside,d.sensex_current)+'%';
+  document.getElementById('s-res').textContent=f(d.sensex_resistance);
+  document.getElementById('s-sup').textContent=f(d.sensex_support);
+  document.getElementById('s-conf').textContent=d.sensex_confidence+'%';
+  document.getElementById('s-cfill').style.width=d.sensex_confidence+'%';
+  const st=document.getElementById('s-tag');
+  st.textContent=d.sensex_bias;st.className='tag '+(d.sensex_bias==='BULLISH'?'bull':d.sensex_bias==='BEARISH'?'bear':'neu');
+  miniChart('s-chart',d.sensex_bias==='BULLISH'?'bull':'bear');
+  // Nifty
+  document.getElementById('n-cur').textContent='Current: '+f(d.nifty_current);
+  document.getElementById('n-up').textContent=f(d.nifty_upside);
+  document.getElementById('n-dn').textContent=f(d.nifty_downside);
+  document.getElementById('n-upp').textContent='+'+p(d.nifty_upside,d.nifty_current)+'%';
+  document.getElementById('n-dnp').textContent=p(d.nifty_downside,d.nifty_current)+'%';
+  document.getElementById('n-res').textContent=f(d.nifty_resistance);
+  document.getElementById('n-sup').textContent=f(d.nifty_support);
+  document.getElementById('n-conf').textContent=d.nifty_confidence+'%';
+  document.getElementById('n-cfill').style.width=d.nifty_confidence+'%';
+  const nt=document.getElementById('n-tag');
+  nt.textContent=d.nifty_bias;nt.className='tag '+(d.nifty_bias==='BULLISH'?'bull':d.nifty_bias==='BEARISH'?'bear':'neu');
+  miniChart('n-chart',d.nifty_bias==='BULLISH'?'bull':'bear');
+  // Gauge
+  setGauge(d.sentiment_score||50);
+  // Stats
+  document.getElementById('st-bull').textContent=d.bullish_signals||'—';
+  document.getElementById('st-bear').textContent=d.bearish_signals||'—';
+  document.getElementById('st-glob').textContent=(d.positive_global||'—')+'/10';
+  // Global table
+  document.getElementById('gtbody').innerHTML=(d.global_markets||[]).map(m=>
+    '<tr><td><div class="mn">'+m.name+'</div><div class="mc">'+m.country+'</div></td>' +
+    '<td class="'+(m.change>=0?'vu':'vd')+'">'+(m.change>=0?'▲':'▼')+' '+Math.abs(m.change)+'%</td>' +
+    '<td><span class="tag '+(m.impact==='BULLISH'?'bull':m.impact==='BEARISH'?'bear':'neu')+'" style="font-size:7px">'+m.impact+'</span></td></tr>'
+  ).join('');
+  // F&O
+  const lvrow=(lbl,cls,val)=>'<div class="lvrow"><span class="lvtype">'+lbl+'</span><span class="lvval '+cls+'">'+val+'</span></div>';
+  document.getElementById('fno-content').innerHTML=
+    '<div><div class="fnotit">NIFTY F&O LEVELS</div>'+
+    lvrow('Call Resistance','lc',d.nifty_call_resistance||'—')+
+    lvrow('Max Pain','lt',d.nifty_max_pain||'—')+
+    lvrow('Put Support','lp',d.nifty_put_support||'—')+
+    lvrow('Buy Above','lc',d.nifty_buy_above||'—')+
+    lvrow('Sell Below','lp',d.nifty_sell_below||'—')+
+    lvrow('SL Long','ls',d.nifty_sl_long||'—')+
+    lvrow('SL Short','ls',d.nifty_sl_short||'—')+'</div>'+
+    '<div><div class="fnotit">SENSEX F&O LEVELS</div>'+
+    lvrow('Call Resistance','lc',d.sensex_call_resistance||'—')+
+    lvrow('Max Pain','lt',d.sensex_max_pain||'—')+
+    lvrow('Put Support','lp',d.sensex_put_support||'—')+
+    lvrow('Buy Above','lc',d.sensex_buy_above||'—')+
+    lvrow('Sell Below','lp',d.sensex_sell_below||'—')+
+    lvrow('SL Long','ls',d.sensex_sl_long||'—')+
+    lvrow('SL Short','ls',d.sensex_sl_short||'—')+'</div>';
+  // News
+  document.getElementById('ngrid').innerHTML=(d.news_items||[]).map(n=>
+    '<div class="nc"><div class="nsrc">'+n.source+'</div><div class="nhl">'+n.headline+'</div>' +
+    '<span class="nimp '+(n.impact==='BULL'?'ibull':n.impact==='BEAR'?'ibear':'ineu')+'">'+
+    (n.impact==='BULL'?'BULLISH':n.impact==='BEAR'?'BEARISH':'NEUTRAL')+' FOR MARKET</span></div>'
+  ).join('');
+  // Text
+  if(d.analysis_text) document.getElementById('out-ana').textContent=d.analysis_text;
+  if(d.strategy) document.getElementById('out-strat').textContent=d.strategy;
+  document.getElementById('last-upd').textContent='Last Updated: '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'})+' IST';
+}
+
+// PARSE
+function parseJSON(txt){
+  try{
+    const m=txt.match(/```json\s*([\s\S]*?)```/)||txt.match(/```\s*([\s\S]*?)```/)||txt.match(/(\{[\s\S]*\})/);
+    if(m)return JSON.parse(m[1]||m[0]);
+  }catch(e){}
+  return null;
+}
+
+// MAIN
+async function runAnalysis(){
+  const key=localStorage.getItem(KEY_K);
+  if(!key){changeKey();return;}
+  const btn=document.getElementById('runBtn');
+  const thinking=document.getElementById('thinking');
+  btn.disabled=true;
+  btn.innerHTML='⏳ &nbsp; GROQ AI ANALYZING MARKETS...';
+  thinking.classList.add('show');
+  const msgs=['LLaMA 3.3 70B warm up ho raha hai...','Global markets data process ho raha hai...','Sensex aur Nifty levels calculate ho rahe hain...','F&O levels aur strategy generate ho rahi hai...','Forecast finalize ho raha hai...'];
+  let si=0;
+  const iv=setInterval(()=>{document.getElementById('thtxt').textContent=msgs[si++%msgs.length];},2200);
+  const today=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'Asia/Kolkata'});
+  const sys='You are a senior Indian equity market analyst specializing in BSE/NSE F&O trading with 20 years of experience. You provide accurate market forecasts based on global cues and technical analysis. Always respond with ONLY valid JSON, no markdown, no extra text.';
+  const usr='Today is '+today+' IST.\n\nGenerate a comprehensive Indian stock market forecast for TOMORROW based on your analysis of:\n- Recent Sensex and Nifty price action and trends\n- US markets: Dow Jones, S&P 500, Nasdaq recent performance\n- Asian markets: Nikkei 225, Hang Seng, Shanghai Composite\n- European markets: FTSE 100, DAX\n- GIFT Nifty / SGX Nifty indication (key predictor)\n- Crude oil, Gold, USD/INR movements\n- India VIX levels\n- FII/DII activity patterns\n- RBI policy stance\n- Global geopolitical events affecting markets\n\nReturn ONLY this JSON structure (no markdown fences, just raw JSON):\n{"sensex_current":82500,"sensex_upside":83200,"sensex_downside":81900,"sensex_resistance":83500,"sensex_support":81600,"sensex_confidence":68,"sensex_bias":"BULLISH","sensex_call_resistance":"83500","sensex_put_support":"81500","sensex_max_pain":"82500","sensex_buy_above":"82700","sensex_sell_below":"82300","sensex_sl_long":"82100","sensex_sl_short":"82900","nifty_current":25100,"nifty_upside":25350,"nifty_downside":24850,"nifty_resistance":25500,"nifty_support":24700,"nifty_confidence":65,"nifty_bias":"BULLISH","nifty_call_resistance":"25500","nifty_put_support":"24500","nifty_max_pain":"25000","nifty_buy_above":"25150","nifty_sell_below":"25050","nifty_sl_long":"24900","nifty_sl_short":"25200","sentiment_score":62,"bullish_signals":7,"bearish_signals":4,"positive_global":6,"global_markets":[{"name":"DOW JONES","country":"USA","change":0.3,"impact":"BULLISH"},{"name":"S&P 500","country":"USA","change":0.4,"impact":"BULLISH"},{"name":"NASDAQ","country":"USA","change":0.6,"impact":"BULLISH"},{"name":"NIKKEI 225","country":"JAPAN","change":-0.5,"impact":"BEARISH"},{"name":"HANG SENG","country":"HONG KONG","change":0.8,"impact":"BULLISH"},{"name":"GIFT NIFTY","country":"INDIA/GIFT","change":0.3,"impact":"BULLISH"},{"name":"FTSE 100","country":"UK","change":0.2,"impact":"NEUTRAL"},{"name":"DAX","country":"GERMANY","change":0.5,"impact":"BULLISH"},{"name":"CRUDE OIL","country":"GLOBAL","change":-1.0,"impact":"BULLISH"},{"name":"INDIA VIX","country":"NSE","change":-2.5,"impact":"BULLISH"}],"news_items":[{"source":"ET MARKETS","headline":"Replace with realistic current Indian market news headline","impact":"BULL"},{"source":"REUTERS","headline":"Replace with realistic global market news headline","impact":"BULL"},{"source":"BLOOMBERG","headline":"Replace with realistic financial news headline","impact":"BEAR"},{"source":"MINT","headline":"Replace with realistic Indian economy news","impact":"BULL"},{"source":"CNBC TV18","headline":"Replace with realistic market news","impact":"BULL"},{"source":"MONEYCONTROL","headline":"Replace with realistic F&O news","impact":"NEU"}],"analysis_text":"Write a comprehensive 400+ word analysis here in English covering: (1) Global market cues from US, Europe, Asia and their expected impact on Indian markets tomorrow (2) GIFT Nifty indication - gap up or gap down expected (3) Key technical levels for Nifty and Sensex - critical support and resistance zones (4) FII and DII activity trends and their impact (5) Sector outlook - which sectors to watch, which are strong vs weak (6) India VIX analysis and what it means for traders (7) Key events to watch tomorrow - earnings, macro data, RBI news (8) Overall market bias and conviction level (9) Risk factors that could change the forecast. Make it detailed and actionable for traders.","strategy":"Write detailed trading strategy here covering: NIFTY F&O STRATEGY with exact entry levels, targets and stop losses for both long and short trades. SENSEX F&O STRATEGY similarly. OPTIONS STRATEGY - specific strikes, bull call spread or bear put spread. SECTOR STRATEGY - which sector stocks to buy or avoid. RISK MANAGEMENT - position sizing, hedging tips. Include a disclaimer about market risks."}';
+  try{
+    const res=await fetch(GROQ_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:GROQ_MODEL,max_tokens:3000,temperature:0.35,messages:[{role:'system',content:sys},{role:'user',content:usr}]})});
+    clearInterval(iv);
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||'HTTP '+res.status);}
+    const data=await res.json();
+    const txt=data?.choices?.[0]?.message?.content||'';
+    const parsed=parseJSON(txt);
+    if(parsed){
+      populate(parsed);
+      if(!parsed.analysis_text) document.getElementById('out-ana').textContent='Analysis complete! Sabhi tabs check karo.';
+    } else {
+      document.getElementById('out-ana').textContent='AI response mila lekin JSON parse nahi hua.\n\nRaw output:\n'+txt.slice(0,600);
+    }
+  } catch(err) {
+    clearInterval(iv);
+    const m=err.message||'Unknown';
+    document.getElementById('out-ana').textContent='Error: '+m+'\n\n'+(m.includes('401')?'API Key galat hai → CHANGE KEY dabao\n':'')+(m.includes('429')?'Rate limit — 30 sec baad try karo\n':'')+(m.includes('fetch')?'Network error — internet check karo\n':'');
+  }
+  thinking.classList.remove('show');
+  btn.disabled=false;
+  btn.innerHTML='🔮 &nbsp; RUN AI ANALYSIS — GROQ POWERED FORECAST';
+}
+
+// Init
+miniChart('s-chart','bull');
+miniChart('n-chart','bull');
+setGauge(50);
+</script>
+</body>
+</html>
